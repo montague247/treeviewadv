@@ -1,0 +1,202 @@
+<project name="TreeViewAdv" xmlns="http://nant.sf.net/release/0.90/nant.xsd" default="build">
+
+	<!-- what kind of build -->
+	<property name="build.configuration" value="debug" overwrite="false" />
+	<property name="build.optimize" value="false" overwrite="false" />
+	<property name="build.debug" value="Full" overwrite="false" />
+	<property name="build.keyfile" value="TreeViewAdv.public.snk" overwrite="false" />
+
+	<property name="nuget.location" value=".nuget/NuGet.exe" />
+
+	<property name="version.major" value="1" overwrite="false" />
+	<property name="version.minor" value="7" overwrite="false" />
+	<property name="version.revision" value="6" overwrite="false" />
+	<property name="version.build" value="${environment::get-variable('BUILD_NUMBER')}" overwrite="false" if="${environment::variable-exists('BUILD_NUMBER')}" />
+	<property name="version.build" value="0" overwrite="false" unless="${environment::variable-exists('BUILD_NUMBER')}" />
+
+	<property name="version.readable" value="${version.major}.${version.minor}" />
+	<property name="version.readable" value="${version.readable}.${version.revision}" if="${version.revision != '0'}" />
+
+	<property name="git.hash" value="${environment::get-variable('GIT_COMMIT')}" overwrite="false" if="${environment::variable-exists('GIT_COMMIT')}" />
+	<property name="git.hash" value="" overwrite="false" unless="${environment::variable-exists('GIT_COMMIT')}" />
+
+	<property name="build.defines" value="DEBUG,TRACE" />
+
+	<property name="net-40.reference.assembly.path" value="C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.0" overwrite="false" />
+
+	<call target="init" />
+
+	<target name="init">
+
+		<!-- Check target framework -->
+		<property name="target.framework" value="3.5" overwrite="false" />
+
+		<!-- set global target framework to 3.5 by default -->
+		<property name="nant.settings.currentframework" value="net-3.5" />
+
+		<!-- Set directories -->
+		<property name="dir.src" value="src/" />
+		<property name="dir.server.src" value="server/" />
+		<property name="dir.doc" value="doc/" />
+		<property name="dir.build" value="build/${target.framework}/${build.configuration}" />
+		<property name="dir.deployment" value="deployment/${target.framework}" />
+
+		<mkdir dir="${dir.build}" />
+	</target>
+
+	<target name="restore-nuget-packages" unless="${target::has-executed('restore-nuget-packages')}">
+		<exec program="${nuget.location}" commandline="restore TreeViewAdv.sln" />
+	</target>
+
+	<target name="build">
+		<call target="build-3.5" />
+		<call target="build-4.0" />
+	</target>
+
+	<target name="build-all">
+		<call target="build-mono-2.0" />
+		<call target="build-3.5" />
+		<call target="build-4.0" />
+	</target>
+
+	<target name="build-3.5" depends="restore-nuget-packages">
+		<property name="build.defines" value="${build.defines}" />
+
+		<property name="target.framework" value="3.5" />
+		<property name="buildoutputbasedir" value="build/${target.framework}/${build.configuration}/TreeViewAdv" />
+		<call target="generate-assembly-info" />
+		<call target="build-all-csc" />
+	</target>
+
+	<target name="build-4.0" depends="restore-nuget-packages">
+		<property name="build.defines" value="${build.defines},NET_40" />
+
+		<property name="target.framework" value="4.0" />
+		<property name="buildoutputbasedir" value="build/${target.framework}/${build.configuration}/TreeViewAdv" />
+		<property name="nant.settings.currentframework" value="net-4.0" />
+		<call target="generate-assembly-info" />
+		<call target="build-all-csc" />
+	</target>
+
+	<target name="build-mono-2.0" depends="restore-nuget-packages">
+		<property name="build.defines" value="${build.defines},MONO" />
+
+		<property name="target.framework" value="mono-2.0" />
+		<property name="buildoutputbasedir" value="build/${target.framework}/${build.configuration}/TreeViewAdv" />
+		<property name="nant.settings.currentframework" value="${target.framework}" />
+		<call target="generate-assembly-info" />
+		<call target="build-all-csc" />
+	</target>
+
+	<target name="build-TreeViewAdv">
+		<fail if="${file::exists(build.keyfile) == false}" message="You need to generate ${build.keyfile} file before building. Use command &#xa;&#xa;&#x9; sn -k ${build.keyfile}" />
+
+		<mkdir dir="${buildoutputbasedir}" />
+
+		<property name="target.dir" value="${buildoutputbasedir}" />
+		<call target="compile-TreeViewAdv" />
+	</target>
+
+	<target name="generate-assembly-info">
+		<asminfo output="Aga.Controls/AssemblyInfo.cs" language="CSharp">
+			<imports>
+				<import namespace="System" />
+				<import namespace="System.Reflection" />
+				<import namespace="System.Runtime.InteropServices" />
+			</imports>
+			<attributes>
+				<attribute type="AssemblyConfigurationAttribute" value="net-${target.framework}.win32; ${build.configuration}" />
+				<attribute type="AssemblyProductAttribute" value="TreeViewAdv ${version.readable} for .NET ${target.framework}" />
+				<attribute type="AssemblyDescriptionAttribute" value="http://sourceforge.net/projects/treeviewadv/" />
+				<attribute type="AssemblyCopyrightAttribute" value="Copyright © Andrey Gliznetsov 2006 - 2009" />
+				<attribute type="ComVisibleAttribute" value="false" />
+				<attribute type="CLSCompliantAttribute" value="true" />
+				<attribute type="AssemblyVersionAttribute" value="${version.major}.${version.minor}.${version.revision}.0" />
+				<!--<attribute type="AssemblyInformationalVersionAttribute" value="${version.major}.${version.minor}.${version.revision}.${version.build} / ${git.hash}" />-->
+				<attribute type="AssemblyDelaySignAttribute" value="false" />
+				<attribute type="System.Security.AllowPartiallyTrustedCallersAttribute" if="${target.framework == '3.5'}" />
+			</attributes>
+		</asminfo>
+	</target>
+
+	<target name="compile-TreeViewAdv" depends="determine-lib-dirs">
+
+		<csc
+			target="library"
+			output="${target.dir}/Aga.Controls.dll"
+			doc="${target.dir}/Aga.Controls.xml"
+			debug="${build.debug}"
+			define="${build.defines}"
+			optimize="${build.optimize}"
+			keyfile="${build.keyfile}"
+      unsafe="true"
+		  nostdlib="true"
+      noconfig="true">
+			<nowarn>
+				<!-- do not report warnings for missing XML comments -->
+				<warning number="0162" />
+				<warning number="0168" />
+				<warning number="1591" />
+				<warning number="0618" />
+			</nowarn>
+			<sources>
+				<include name="Aga.Controls/**/*.cs" />
+				<exclude name="Aga.Controls/Properties/AssemblyInfo.cs" />
+			</sources>
+			<references>
+				<include name="mscorlib.dll" />
+				<include name="System.dll" />
+				<include name="System.Data.dll" />
+        <include name="System.Design.dll" />
+        <include name="System.Drawing.dll" />
+        <include name="System.Windows.Forms.dll" />
+        <include name="System.Xml.dll" />
+			</references>
+		</csc>
+	</target>
+
+	<target name="clean">
+		<echo message="Cleaning old compiled dlls..." />
+		<delete failonerror="false" dir="./build" />
+		<delete failonerror="false" dir="./CloverBuild" />
+		<delete failonerror="false" dir="./CloverReport" />
+		<delete failonerror="false" dir="./package" />
+		<delete failonerror="false" file="./TreeViewAdv-x.x.zip" />
+		<echo message="Cleaning old temporary build files (obj and bin dirs)..." />
+		<delete>
+			<fileset>
+				<include name="${dir.src}/**/obj/**" />
+				<include name="${dir.src}/**/bin/**" />
+			</fileset>
+		</delete>
+	</target>
+
+	<target name="package-release">
+
+		<call target="init" />
+
+		<property name="build.configuration" value="release" />
+		<property name="build.optimize" value="true" />
+		<property name="build.debug" value="PdbOnly" />
+		<property name="build.defines" value="TRACE,STRONG" />
+		<property name="build.keyfile" value="TreeViewAdv.snk" />
+
+		<call target="clean" />
+		<call target="build-3.5" />
+		<call target="build-4.0" />
+
+		<exec program="${nuget.location}" commandline="pack TreeViewAdv.nuspec -Version ${version.readable}" />
+	</target>
+
+	<target name="build-all-csc">
+		<property name="build.defines" value="" overwrite="false" />
+		<property name="lib-dir-version" value="${target.framework}" overwrite="false" />
+
+		<call target="build-TreeViewAdv" />
+	</target>
+
+	<target name="determine-lib-dirs">
+		<property name="nuget-framework" value="net40" />
+		<property name="nuget-framework" value="net35" if="${target.framework == '3.5'}" />
+	</target>
+</project>
