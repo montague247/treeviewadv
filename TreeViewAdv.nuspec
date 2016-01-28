@@ -3,14 +3,17 @@
   <metadata>
     <id>AdamsLair.TreeViewAdv</id>
     <version>$version$</version>
-	<authors>See original project authors</authors>
+    <authors>See original project authors</authors>
     <title>AdamsLair.TreeViewAdv</title>
     <projectUrl>https://github.com/AdamsLair/treeviewadv</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>A custom version of Aga.Controls for being used with the Duality framework. Forked from http://sourceforge.net/projects/treeviewadv/</description>
   </metadata>
   <files>
-    <file src="bin\Release\Aga.Controls.dll" target="lib" />
-    <file src="bin\Release\Aga.Controls.pdb" target="lib" />
+    <file src="build\3.5\release\TreeViewAdv\Aga.Controls.dll" target="lib\net35" />
+    <file src="build\3.5\release\TreeViewAdv\Aga.Controls.pdb" target="lib\net35" />
+
+    <file src="build\4.0\release\TreeViewAdv\Aga.Controls.dll" target="lib\net40" />
+    <file src="build\4.0\release\TreeViewAdv\Aga.Controls.pdb" target="lib\net40" />
   </files>
 </package>
